@@ -18,8 +18,21 @@ def main(page: ft.Page):
     page.bgcolor = ft.colors.WHITE
     page.window.width = 1280
     page.window.height = 900
+    
+    def agregar_a_inicio(nombre="Lanzador de Juegos"):
+        startup = winshell.startup()  
+        ruta_app = sys.executable  
+        ruta_acceso_directo = os.path.join(startup, f"{nombre}.lnk")
 
-    # Fuente personalizada (asegúrate de que la ruta sea correcta)
+        if not os.path.exists(ruta_acceso_directo):
+            shell = win32com.client.Dispatch("WScript.Shell")
+            acceso_directo = shell.CreateShortCut(ruta_acceso_directo)
+            acceso_directo.Targetpath = ruta_app
+            acceso_directo.WorkingDirectory = os.path.dirname(ruta_app)
+            acceso_directo.IconLocation = ruta_app
+            acceso_directo.save()
+            
+    agregar_a_inicio()
     page.fonts = {
         "MiFuente": "Lanzador-de-Videojuegos/fuentes/WinkySans-VariableFont_wght.ttf"
     }
