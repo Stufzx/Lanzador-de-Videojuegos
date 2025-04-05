@@ -2,6 +2,9 @@ import flet as ft
 import subprocess
 import json
 import os
+import sys
+import winshell
+import win32com.client
 
 DATA_FILE = "juegos.json"
 
