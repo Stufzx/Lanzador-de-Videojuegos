@@ -18,7 +18,7 @@ def main(page: ft.Page):
 
     # Fuente personalizada (asegúrate de que la ruta sea correcta)
     page.fonts = {
-        "MiFuente": "fuentes\\WinkySans-VariableFont_wght.ttf"
+        "MiFuente": "Lanzador-de-Videojuegos/fuentes/WinkySans-VariableFont_wght.ttf"
     }
     page.theme = ft.Theme(font_family="MiFuente")
 
