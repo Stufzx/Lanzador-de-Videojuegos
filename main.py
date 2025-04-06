@@ -8,6 +8,8 @@ import win32com.client
 from flet import PopupMenuButton, PopupMenuItem, icons
 import subprocess
 import asyncio
+import threading
+import time
 
 DATA_FILE = "juegos.json"
 
@@ -84,6 +86,56 @@ def main(page: ft.Page):
 
     scroll_state = {"x": 0}
     juegos = []
+
+    auto_scroll_activo = [False]
+    inactividad_timer = [None]
+    tiempo_inactivo = 3  # segundos
+
+    def volver_scroll_al_inicio():
+        scroll_state["x"] = 0
+        row.scroll_to(
+            offset=ft.Offset(0, 0),
+            duration=500  # milisegundos → más alto = más lento
+        )
+        row.update()
+
+
+    def iniciar_autoscroll():
+        if auto_scroll_activo[0]:
+            return
+        auto_scroll_activo[0] = True
+
+        def volver():
+            volver_scroll_al_inicio()
+            auto_scroll_activo[0] = False
+
+        threading.Thread(target=volver, daemon=True).start()
+
+    def detener_autoscroll():
+        auto_scroll_activo[0] = False
+
+    def reiniciar_temporizador_inactividad():
+        detener_autoscroll()
+        if inactividad_timer[0]:
+            inactividad_timer[0].cancel()
+
+        timer = threading.Timer(tiempo_inactivo, iniciar_autoscroll)
+        inactividad_timer[0] = timer
+        timer.start()
+
+    # Asegúrate de tener estas asignaciones después de haber definido page y row:
+    page.on_mouse_move = lambda e: reiniciar_temporizador_inactividad()
+    page.on_click = lambda e: reiniciar_temporizador_inactividad()
+    page.on_scroll = lambda e: reiniciar_temporizador_inactividad()
+
+    # Iniciar temporizador desde el principio
+    reiniciar_temporizador_inactividad()
+
+
+
+    def desplazar_scroll():
+        scroll_state["x"] += 2  # cantidad de desplazamiento
+        row.scroll_to(offset=scroll_state["x"], duration=100)
 
     def handle_close(e):
         page.close(dlg_modal)
@@ -232,7 +284,7 @@ def main(page: ft.Page):
             width=350,
             height=450,
             alignment=ft.alignment.center,
-            bgcolor=ft.colors.TRANSPARENT,  # ← ¡Así sí funciona!
+            bgcolor=ft.colors.TRANSPARENT,  
             border_radius=10,
             margin=15,
             on_click=lanzar_juego,
@@ -282,7 +334,7 @@ def main(page: ft.Page):
         controls=[],
         spacing=10,
         expand=True,
-        scroll=ft.ScrollMode.ALWAYS  # Solo scroll, sin arrastre con ratón
+        scroll=ft.ScrollMode.ALWAYS  # Solo scroll
         
     )
 
@@ -291,6 +343,8 @@ def main(page: ft.Page):
         expand=True,
         height=700,
     )
+
+
 
     def on_resize(e):
         scroll_container.width = page.width
