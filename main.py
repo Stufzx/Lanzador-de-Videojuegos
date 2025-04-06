@@ -10,6 +10,9 @@ import subprocess
 import asyncio
 import threading
 import time
+from playsound import playsound
+import pygame
+
 
 DATA_FILE = "juegos.json"
 
@@ -24,7 +27,26 @@ def main(page: ft.Page):
     page.window.width = 1280
     page.window.height = 900
     page.window.resizable = False
+    # Inicializar mixer de pygame
+    pygame.mixer.init()
 
+    # Variables de estado
+    musica_actual = {"ruta": None, "nombre": None, "reproduciendo": False}
+    page.bgcolor = "#1E1E2F"  # Fondo general oscuro
+    page.theme_mode = ft.ThemeMode.DARK  # Establece el modo oscuro
+
+    page.theme = ft.Theme(
+        color_scheme=ft.ColorScheme(
+            primary="#00E6C3",        # Color primario
+            secondary="#E057B0",      # Color secundario
+            on_background="#FFFFFF",  # Fuente blanca por defecto
+            background="#1E1E2F"      # Fondo oscuro
+        ),
+        text_theme=ft.TextTheme(
+            body_medium=ft.TextStyle(color=ft.colors.WHITE),  # Blanco para texto normal
+            title_medium=ft.TextStyle(color=ft.colors.WHITE),  # Blanco para títulos
+        )
+    )
 
 
     page.fonts = {
@@ -32,6 +54,12 @@ def main(page: ft.Page):
     }
     page.theme = ft.Theme(font_family="MiFuente")
 
+        # Crear el selector de archivos al iniciar la app
+    file_picker = ft.FilePicker(
+        on_result=lambda result: print(f"🎵 Música seleccionada: {result.files[0].path}") if result.files else None
+    )
+    page.overlay.append(file_picker)
+    page.update()
 
     scroll_container = ft.Container(
         content=ft.Row(
@@ -89,7 +117,7 @@ def main(page: ft.Page):
 
     auto_scroll_activo = [False]
     inactividad_timer = [None]
-    tiempo_inactivo = 3  # segundos
+    tiempo_inactivo = 20  # segundos
 
     def volver_scroll_al_inicio():
         scroll_state["x"] = 0
@@ -123,7 +151,7 @@ def main(page: ft.Page):
         inactividad_timer[0] = timer
         timer.start()
 
-    # Asegúrate de tener estas asignaciones después de haber definido page y row:
+   
     page.on_mouse_move = lambda e: reiniciar_temporizador_inactividad()
     page.on_click = lambda e: reiniciar_temporizador_inactividad()
     page.on_scroll = lambda e: reiniciar_temporizador_inactividad()
@@ -345,33 +373,171 @@ def main(page: ft.Page):
     )
 
 
+    def cargar_musica(e):
+        def on_result(result: ft.FilePickerResultEvent):
+            if result.files:
+                ruta = result.files[0].path
+                nombre = os.path.basename(ruta)
 
+                musica_actual["ruta"] = ruta
+                musica_actual["nombre"] = nombre
+                musica_actual["reproduciendo"] = False
+
+                texto_musica.value = f"🎶 {nombre}"
+                boton_play.icon = ft.icons.PLAY_ARROW
+                texto_musica.update()
+                boton_play.update()
+        
+        # Crear file_picker como control global o dentro de la función principal
+        file_picker = ft.FilePicker(on_result=on_result)
+
+        # AÑADIRLO a la página antes de actualizarlo o usarlo
+        if file_picker not in page.overlay:
+            page.overlay.append(file_picker)
+            page.update()  # <– Actualiza la página para reflejar cambios
+
+        file_picker.pick_files(allowed_extensions=["mp3"], allow_multiple=False)
+
+    def toggle_reproduccion(e):
+        if musica_actual["ruta"] is None:
+            return
+
+        if not musica_actual["reproduciendo"]:
+            pygame.mixer.music.load(musica_actual["ruta"])
+            pygame.mixer.music.play()
+            musica_actual["reproduciendo"] = True
+            boton_play.icon = ft.icons.PAUSE
+        else:
+            pygame.mixer.music.stop()
+            musica_actual["reproduciendo"] = False
+            boton_play.icon = ft.icons.PLAY_ARROW
+
+        boton_play.update()
+
+    # Elementos de interfaz
+    boton_cargar = ft.IconButton(
+        icon=ft.icons.MUSIC_NOTE,
+        tooltip="Cargar música",
+        on_click=cargar_musica,
+        icon_color="#FFFFFF",
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=10),
+            bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
+            padding=10
+        )
+    )
+
+    texto_musica = ft.Text(
+        value="No hay música cargada",
+        color=ft.colors.WHITE,
+        size=14
+    )
+
+    boton_play = ft.IconButton(
+        icon=ft.icons.PLAY_ARROW,
+        tooltip="Reproducir / Pausar",
+        on_click=toggle_reproduccion,
+        icon_color="#FFFFFF",
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=10),
+            bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
+            padding=10
+        )
+    )
+
+    # Añádelo debajo del buscador o donde quieras colocarlo
+    barra_musica = ft.Row(
+        controls=[boton_cargar, texto_musica, boton_play],
+        spacing=10,
+        alignment=ft.MainAxisAlignment.CENTER
+    )
+
+
+
+
+
+    boton_musica = ft.IconButton(
+        icon=ft.icons.MUSIC_NOTE,
+        tooltip="Cargar música",
+        on_click=cargar_musica,
+        icon_color="#FFFFFF",
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=10),
+            bgcolor=ft.colors.with_opacity(0.1, ft.colors.WHITE),
+            padding=10
+        )
+    )
+
+
+    # Campo de búsqueda
+    buscador = ft.TextField(
+        hint_text="Buscar juego...",
+        width=400,
+        prefix_icon=ft.icons.SEARCH,
+        on_change=lambda e: filtrar_juegos(e.control.value)
+    )
+
+    # Adaptar scroll al tamaño de la ventana
     def on_resize(e):
         scroll_container.width = page.width
         scroll_container.update()
 
     page.on_resize = on_resize
 
-    buscador = ft.TextField(
-    hint_text="Buscar juego...",
-    width=400,
-    prefix_icon=ft.icons.SEARCH,
-    on_change=lambda e: filtrar_juegos(e.control.value)
-    )       
 
-
+    
     page.add(
         ft.Column([
             buscador,
+            ft.Row([barra_musica], alignment=ft.MainAxisAlignment.START),
             scroll_container,
-            ft.Row([
-                ft.ElevatedButton("Añadir juego", icon=ft.icons.ADD, on_click=agregar_juego),
-                ft.ElevatedButton("Ayuda", icon=ft.icons.HELP, on_click=mostrar_ayuda),
-            ],
-            alignment=ft.MainAxisAlignment.CENTER)
+            ft.Row(
+                [
+                    ft.Container(
+                        content=ft.Row(
+                            [
+                                ft.Icon(ft.icons.ADD, color="#00E6C3", size=20),
+                                ft.Text("Añadir juego", color="#FFFFFF", weight="bold", size=16),
+                            ],
+                            alignment=ft.MainAxisAlignment.CENTER,
+                            spacing=10
+                        ),
+                        bgcolor="#29293d",  # Botón oscuro
+                        border=ft.border.all(1.5, "#00E6C3"),  # Borde turquesa
+                        border_radius=10,
+                        padding=ft.padding.symmetric(horizontal=22, vertical=12),
+                        on_click=agregar_juego,
+                        animate=ft.animation.Animation(300, "easeInOut"),
+                        ink=True
+                    ),
+                    ft.Container(
+                        content=ft.Row(
+                            [
+                                ft.Icon(ft.icons.HELP, color="#E057B0", size=20),
+                                ft.Text("Ayuda", color="#FFFFFF", weight="bold", size=16),
+                            ],
+                            alignment=ft.MainAxisAlignment.CENTER,
+                            spacing=10
+                        ),
+                        bgcolor="#29293d",
+                        border=ft.border.all(1.5, "#E057B0"),  # Borde fucsia
+                        border_radius=10,
+                        padding=ft.padding.symmetric(horizontal=22, vertical=12),
+                        on_click=mostrar_ayuda,
+                        animate=ft.animation.Animation(300, "easeInOut"),
+                        ink=True
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.CENTER
+            )
         ],
         expand=True)
     )
+
+
+
+
+
 
 
     cargar_juegos_guardados()
