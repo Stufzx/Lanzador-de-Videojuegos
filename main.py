@@ -3,14 +3,17 @@ import subprocess
 import json
 import os
 import sys
-import winshell
+import winshell 
 import win32com.client
+from flet import PopupMenuButton, PopupMenuItem, icons
+import subprocess
+import asyncio
 
 DATA_FILE = "juegos.json"
 
 def main(page: ft.Page):
     
-    page.title = "Launcher de juegos"
+    page.title = "Nexxo"
     page.window.title_bar_hidden = True
     page.window.title_bar_buttons_hidden = True
     page.window.center()
@@ -18,26 +21,43 @@ def main(page: ft.Page):
     page.bgcolor = ft.colors.WHITE
     page.window.width = 1280
     page.window.height = 900
-    
-    def agregar_a_inicio(nombre="Lanzador de Juegos"):
-        startup = winshell.startup()  
-        ruta_app = sys.executable  
-        ruta_acceso_directo = os.path.join(startup, f"{nombre}.lnk")
+    page.window.resizable = False
 
-        if not os.path.exists(ruta_acceso_directo):
-            shell = win32com.client.Dispatch("WScript.Shell")
-            acceso_directo = shell.CreateShortCut(ruta_acceso_directo)
-            acceso_directo.Targetpath = ruta_app
-            acceso_directo.WorkingDirectory = os.path.dirname(ruta_app)
-            acceso_directo.IconLocation = ruta_app
-            acceso_directo.save()
-            
-    agregar_a_inicio()
+
+
     page.fonts = {
-        "MiFuente": "Lanzador-de-Videojuegos/fuentes/WinkySans-VariableFont_wght.ttf"
+        "MiFuente": "fuentes\WinkySans-VariableFont_wght.ttf"
     }
     page.theme = ft.Theme(font_family="MiFuente")
 
+
+    scroll_container = ft.Container(
+        content=ft.Row(
+            controls=[],
+            spacing=10,
+        ),
+        width=page.width,
+        height=700,
+    )
+
+
+
+    area_arrastre = ft.WindowDragArea(
+        ft.Container(
+            bgcolor=ft.colors.TRANSPARENT,
+            padding=10,
+            width=1280,
+            
+            
+        ),
+        maximizable=False  # Evita maximizar al hacer doble clic
+    )
+    page.add(
+        ft.Row(
+            controls=[area_arrastre],
+            alignment=ft.MainAxisAlignment.CENTER
+        )
+    )
     # Función para cerrar la ventana
     def cerrar_app(e):
         page.window.close()
@@ -51,6 +71,7 @@ def main(page: ft.Page):
         icon_size=24,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)),
     )
+    
 
     # Añadir el botón arriba a la derecha
     page.add(
@@ -89,6 +110,16 @@ def main(page: ft.Page):
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(juegos, f, indent=4)
 
+    def filtrar_juegos(texto):
+        texto = texto.lower().strip()
+        for i, control in enumerate(row.controls):
+            if texto in juegos[i]["titulo"].lower():
+                control.visible = True
+            else:
+                control.visible = False
+        row.update()
+
+
     def crear_container_juego(imagen_path="", juego_path=None, titulo=""):
         imagen_juego = ft.Image(
             src=imagen_path,
@@ -105,7 +136,7 @@ def main(page: ft.Page):
             value=titulo,
             text_align=ft.TextAlign.CENTER,
             on_change=lambda e: actualizar_info_juego(index),
-            width=480,
+            width=350,
             border="none",
             hint_text="Titulo del Juego",   
             #border_radius=ft.border_radius.all(10),
@@ -149,12 +180,17 @@ def main(page: ft.Page):
                 row.controls.remove(contenedor)
                 guardar_juegos()
                 row.update()
+
+
+
         def lanzar_juego(e):
             if ruta_juego["ruta"]:
                 try:
-                    subprocess.Popen(ruta_juego["ruta"])
+                    comando = f'Start-Process -FilePath "{ruta_juego["ruta"]}" -Verb runAs'
+                    subprocess.run(["powershell", "-Command", comando])
                 except Exception as err:
                     print("Error al ejecutar:", err)
+
 
         index = len(juegos)
         juegos.append({
@@ -163,35 +199,49 @@ def main(page: ft.Page):
             "juego": juego_path
         })
 
-        contenedor = ft.Container(
-            content=ft.Column([
-                titulo_control,
-                imagen_juego,
-                ft.Row([
-                    ft.ElevatedButton("Subir imagen", on_click=subir_imagen,style=ft.ButtonStyle(
-            color=ft.colors.WHITE,
-            bgcolor=ft.colors.DEEP_PURPLE,
-            padding=20,
-            elevation=5,
-            overlay_color=ft.colors.PURPLE_100,
-            shape=ft.RoundedRectangleBorder(radius=20),
-        ),),
-                    ft.ElevatedButton("Cargar juego", on_click=cargar_ruta_juego),
-                    ft.ElevatedButton("Eliminar", icon=ft.icons.DELETE, style=ft.ButtonStyle(bgcolor=ft.colors.RED_100),
-                                    on_click=lambda e: eliminar_juego(index, contenedor)),
-                ])
+        acciones_menu = ft.PopupMenuButton(
+            icon=icons.MORE_VERT,
+            items=[
+                ft.PopupMenuItem(
+                    text="Subir imagen",
+                    on_click=subir_imagen
+                ),
+                ft.PopupMenuItem(
+                    text="Cargar juego",
+                    on_click=cargar_ruta_juego
+                ),
+                ft.PopupMenuItem(
+                    text="Eliminar",
+                    on_click=lambda e: eliminar_juego(index, contenedor),
+                    icon=icons.DELETE,
+                ),
+            ]
+        )
 
-            ],
-                alignment=ft.MainAxisAlignment.CENTER),
+        contenedor = ft.Container(
+            content=ft.Column(
+                [
+                    titulo_control,
+                    imagen_juego,
+                    ft.Row([acciones_menu], alignment=ft.MainAxisAlignment.END),
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                expand=True
+            ),
             width=350,
-            height=500,
+            height=450,
             alignment=ft.alignment.center,
-            bgcolor=ft.colors.TRANSPARENT,
+            bgcolor=ft.colors.TRANSPARENT,  # ← ¡Así sí funciona!
             border_radius=10,
-            margin=5,
+            margin=15,
             on_click=lanzar_juego,
             animate_scale=ft.Animation(300, "easeInOut")
         )
+
+
+
+
 
         def on_hover(e: ft.HoverEvent):
             contenedor.scale = 1.05 if e.data == "true" else 1
@@ -228,9 +278,17 @@ def main(page: ft.Page):
             row.update()
 
 
+    row = ft.Row(
+        controls=[],
+        spacing=10,
+        expand=True,
+        scroll=ft.ScrollMode.ALWAYS  # Solo scroll, sin arrastre con ratón
+        
+    )
+
     scroll_container = ft.Container(
         content=row,
-        width=page.width,
+        expand=True,
         height=700,
     )
 
@@ -238,24 +296,29 @@ def main(page: ft.Page):
         scroll_container.width = page.width
         scroll_container.update()
 
-    def on_pan_update(e: ft.DragUpdateEvent):
-        scroll_state["x"] += e.delta_x
-        row.offset = ft.Offset(scroll_state["x"] / 1000, 0)
-        row.update()
-
-    gesture = ft.GestureDetector(
-        content=scroll_container,
-        on_pan_update=on_pan_update,
-    )
-
     page.on_resize = on_resize
+
+    buscador = ft.TextField(
+    hint_text="Buscar juego...",
+    width=400,
+    prefix_icon=ft.icons.SEARCH,
+    on_change=lambda e: filtrar_juegos(e.control.value)
+    )       
+
+
     page.add(
-        gesture,
-        ft.Row([
-            ft.ElevatedButton("Añadir juego", icon=ft.icons.ADD, on_click=agregar_juego),
-            ft.ElevatedButton("Ayuda", icon=ft.icons.HELP, on_click=mostrar_ayuda),
-        ])
+        ft.Column([
+            buscador,
+            scroll_container,
+            ft.Row([
+                ft.ElevatedButton("Añadir juego", icon=ft.icons.ADD, on_click=agregar_juego),
+                ft.ElevatedButton("Ayuda", icon=ft.icons.HELP, on_click=mostrar_ayuda),
+            ],
+            alignment=ft.MainAxisAlignment.CENTER)
+        ],
+        expand=True)
     )
+
 
     cargar_juegos_guardados()
 
