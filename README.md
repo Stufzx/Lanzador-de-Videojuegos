@@ -1,32 +1,18 @@
 ﻿<div align="center">
+  
+<img src="https://img.shields.io/badge/Nexxo-Launcher-blueviolet?style=for-the-badge&logo=windows" alt="Nexxo Logo" />
+  
+# 🎮 Nexxo - Lanzador de Videojuegos
 
-# Nexxo
-
+**Una forma visual, personalizable y moderna de lanzar tus videojuegos favoritos desde el escritorio.**
 
 </div>
 
-# Building
+---
 
-1. Clona el codigo con `git clone --recursive https://github.com/Stufzx/Lanzador-de-Videojuegos.git`
+## 🚀 Construcción del proyecto
 
- 
+1. Clona el repositorio con:
 
-2. Construido en VS Code 2025
-    
-
-# About the project
-
-
-# About the releases
-
-
-# Regarding views on open source (quoting ChatGPT)
-
-
-
-# Further optimizations
-
-
-# Credits
-
-q
+   ```bash
+   git clone --recursive https://github.com/Stufzx/Lanzador-de-Videojuegos.git
